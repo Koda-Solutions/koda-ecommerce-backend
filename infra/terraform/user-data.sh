@@ -56,11 +56,14 @@ systemctl restart docker
 mkdir -p /opt/ecom/mysql-init
 
 # .env: dev database passwords match the init script; the JWT secret comes from
-# SSM with a dev fallback so a first boot on an empty account still succeeds.
+# SSM. Both fail closed so a boot never falls back to a static string that a
+# reader could guess.
 MYSQL_ROOT_PASSWORD=$(aws ssm get-parameter --name /ecom/dev/mysql_root_password \
-  --with-decryption --region "$REGION" --query Parameter.Value --output text 2>/dev/null || echo koda_root_pw)
+  --with-decryption --region "$REGION" --query Parameter.Value --output text) \
+  || { echo "FATAL: /ecom/dev/mysql_root_password not in SSM"; exit 1; }
 JWT_SECRET=$(aws ssm get-parameter --name /ecom/dev/jwt_secret \
-  --with-decryption --region "$REGION" --query Parameter.Value --output text 2>/dev/null || echo koda_dev_jwt)
+  --with-decryption --region "$REGION" --query Parameter.Value --output text) \
+  || { echo "FATAL: /ecom/dev/jwt_secret not in SSM"; exit 1; }
 
 cat > /opt/ecom/.env <<EOFENV
 ECR_BASE=${ECR_BASE}
