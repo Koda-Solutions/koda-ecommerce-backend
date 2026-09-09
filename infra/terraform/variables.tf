@@ -34,8 +34,17 @@ variable "github_org" {
   default     = "Koda-Solutions"
 }
 
+variable "github_org_id" {
+  description = "Numeric GitHub organisation id, embedded by GitHub in the immutable OIDC subject claim"
+  type        = string
+  default     = "255325435"
+}
+
 variable "github_repos" {
-  description = "Repos allowed to assume the deploy role"
-  type        = list(string)
-  default     = ["koda-ecommerce-backend", "koda-ecommerce-frontend"]
+  description = "Repos allowed to assume the deploy role, mapped to their numeric GitHub ids (also part of the immutable subject claim)"
+  type        = map(string)
+  default = {
+    "koda-ecommerce-backend"  = "1363198570"
+    "koda-ecommerce-frontend" = "1363198703"
+  }
 }

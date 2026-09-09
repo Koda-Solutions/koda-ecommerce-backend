@@ -2,14 +2,12 @@
 # credential anywhere (Koda docker.md): the workflow assumes a short-lived
 # role scoped to this project's two repos.
 
-data "tls_certificate" "github" {
+# The OIDC provider already exists in this account, created for Koda's own
+# projects. One provider per issuer per account: reference it, never manage it
+# (Koda cicd.tf). Managing a thumbprint list here would drift and could break
+# Koda's own deploys.
+data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
-}
-
-resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.github.certificates[0].sha1_fingerprint]
 }
 
 resource "aws_iam_role" "deploy" {
@@ -19,14 +17,19 @@ resource "aws_iam_role" "deploy" {
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Principal = { Federated = data.aws_iam_openid_connect_provider.github.arn }
       Action    = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = { "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com" }
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = format(
-            "repo:%[1]s/*:ref:refs/heads/main",
-            var.github_org,
+          # GitHub mints the "immutable" subject form carrying both ids, not
+          # the documented repo:ORG/REPO form. Verified against a real token
+          # (Koda cicd.tf): repo:Koda-Solutions@255325435/koda-ecommerce-backend@1363198570:ref:refs/heads/main
+          "token.actions.githubusercontent.com:sub" = concat(
+            [
+              for repo, repo_id in var.github_repos :
+              "repo:${var.github_org}@${var.github_org_id}/${repo}@${repo_id}:ref:refs/heads/main"
+            ],
           )
         }
       }
