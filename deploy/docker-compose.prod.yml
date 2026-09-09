@@ -1,0 +1,168 @@
+# Production compose for the ecommerce host. Everything is Docker on one
+# instance, exactly the Koda pattern. Images come from ECR, tags come from
+# /opt/ecom/.env and are updated by deploy.sh. Every container has a mem_limit:
+# the JVM reads its real limit via MaxRAMPercentage, so an unbounded container
+# beside seven bounded ones is how the host runs out of memory anyway
+# (Koda docker.md).
+
+name: ecom
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: ecom-mysql
+    restart: unless-stopped
+    mem_limit: 768m
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - /opt/ecom/mysql-init:/docker-entrypoint-initdb.d:ro
+      - ecom-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  user-ms:
+    image: ${ECR_BASE}/ecom/user-ms:${TAG_USER_MS}
+    container_name: ecom-user-ms
+    restart: unless-stopped
+    mem_limit: 280m
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: koda_user_ms
+      MYSQL_PASSWORD: ${USER_MS_DB_PW}
+      JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8040/api/user/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  product-ms:
+    image: ${ECR_BASE}/ecom/product-ms:${TAG_PRODUCT_MS}
+    container_name: ecom-product-ms
+    restart: unless-stopped
+    mem_limit: 280m
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: koda_product_ms
+      MYSQL_PASSWORD: ${PRODUCT_MS_DB_PW}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8050/api/product/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  cart-ms:
+    image: ${ECR_BASE}/ecom/cart-ms:${TAG_CART_MS}
+    container_name: ecom-cart-ms
+    restart: unless-stopped
+    mem_limit: 280m
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: koda_cart_ms
+      MYSQL_PASSWORD: ${CART_MS_DB_PW}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8060/api/cart/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  order-ms:
+    image: ${ECR_BASE}/ecom/order-ms:${TAG_ORDER_MS}
+    container_name: ecom-order-ms
+    restart: unless-stopped
+    mem_limit: 280m
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: koda_order_ms
+      MYSQL_PASSWORD: ${ORDER_MS_DB_PW}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8070/api/order/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  payment-ms:
+    image: ${ECR_BASE}/ecom/payment-ms:${TAG_PAYMENT_MS}
+    container_name: ecom-payment-ms
+    restart: unless-stopped
+    mem_limit: 280m
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: koda_payment_ms
+      MYSQL_PASSWORD: ${PAYMENT_MS_DB_PW}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/payment/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  shipment-ms:
+    image: ${ECR_BASE}/ecom/shipment-ms:${TAG_SHIPMENT_MS}
+    container_name: ecom-shipment-ms
+    restart: unless-stopped
+    mem_limit: 280m
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: koda_shipment_ms
+      MYSQL_PASSWORD: ${SHIPMENT_MS_DB_PW}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8090/api/shipment/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  notification-ms:
+    image: ${ECR_BASE}/ecom/notification-ms:${TAG_NOTIFICATION_MS}
+    container_name: ecom-notification-ms
+    restart: unless-stopped
+    mem_limit: 280m
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_USER: koda_notification_ms
+      MYSQL_PASSWORD: ${NOTIFICATION_MS_DB_PW}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8100/api/notification/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+  frontend:
+    image: ${ECR_BASE}/ecom/frontend:${TAG_FRONTEND}
+    container_name: ecom-frontend
+    restart: unless-stopped
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: ecom-caddy
+    restart: unless-stopped
+    mem_limit: 96m
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - /opt/ecom/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ecom-caddy-data:/data
+
+volumes:
+  ecom-mysql-data:
+  ecom-caddy-data:

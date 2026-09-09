@@ -1,0 +1,119 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_BASE: 740089361110.dkr.ecr.eu-central-1.amazonaws.com
+  SERVICES: user-ms product-ms cart-ms order-ms payment-ms shipment-ms notification-ms
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: koda_root_pw
+        ports:
+          - "3306:3306"
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Seed schemas and least privilege users
+        run: |
+          docker exec -T $(docker ps -q | head -1) mysql -uroot -pkoda_root_pw \
+            < scripts/mysql/init/001_schemas_and_users.sql
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+      - name: Verify the reactor
+        run: mvn -B verify
+        env:
+          MYSQL_HOST: 127.0.0.1
+
+  build-and-deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} \
+            | docker login --username AWS --password-stdin ${{ env.ECR_BASE }}
+
+      - name: Build and push the 7 service images
+        run: |
+          set -euxo pipefail
+          for svc in ${{ env.SERVICES }}; do
+            docker build -t "${{ env.ECR_BASE }}/ecom/${svc}:${GITHUB_SHA}" "services/${svc}"
+            docker push "${{ env.ECR_BASE }}/ecom/${svc}:${GITHUB_SHA}"
+          done
+
+      - name: Wait for the host to be an SSM managed instance
+        run: |
+          for i in $(seq 1 30); do
+            if aws ssm describe-instance-information --region "${{ env.AWS_REGION }}" \
+                --filters "Key=tag:Name,Values=ecom-dev-app" \
+                --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null | grep -q Online; then
+              echo "host is managed"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "host never became an SSM managed instance" >&2
+          exit 1
+
+      - name: Deploy every service at this SHA
+        run: |
+          set -euo pipefail
+          for svc in ${{ env.SERVICES }}; do
+            command_id=$(aws ssm send-command \
+              --region "${{ env.AWS_REGION }}" \
+              --document-name AWS-RunShellScript \
+              --targets "Key=tag:Name,Values=ecom-dev-app" \
+              --comment "deploy ${svc} ${GITHUB_SHA}" \
+              --parameters "commands=[\"/opt/ecom/deploy.sh ${svc} ${GITHUB_SHA}\"]" \
+              --query Command.CommandId --output text)
+            echo "deploying ${svc} (${command_id})"
+            for i in $(seq 1 36); do
+              status=$(aws ssm get-command-invocation --region "${{ env.AWS_REGION }}" \
+                --command-id "$command_id" \
+                --instance-id "$(aws ssm describe-instance-information --region "${{ env.AWS_REGION }}" \
+                  --filters "Key=tag:Name,Values=ecom-dev-app" --query 'InstanceInformationList[0].InstanceId' --output text)" \
+                --query Status --output text 2>/dev/null || echo Pending)
+              [ "$status" = Success ] || [ "$status" = Failed ] || [ "$status" = Cancelled ] && break
+              sleep 10
+            done
+            if [ "$status" != Success ]; then
+              echo "${svc} deploy failed with status ${status}" >&2
+              aws ssm get-command-invocation --region "${{ env.AWS_REGION }}" \
+                --command-id "$command_id" \
+                --instance-id "$(aws ssm describe-instance-information --region "${{ env.AWS_REGION }}" \
+                  --filters "Key=tag:Name,Values=ecom-dev-app" --query 'InstanceInformationList[0].InstanceId' --output text)" \
+                --query StandardErrorContent --output text >&2 || true
+              exit 1
+            fi
+            echo "${svc} deployed"
+          done

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.koda.ecommerce</groupId>
+    <artifactId>koda-ecommerce-backend</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>koda-ecommerce-backend</name>
+    <description>Koda Ecommerce backend reactor: the 7 Spring Boot microservices, one artifact and one image per service</description>
+
+    <modules>
+        <module>services/user-ms</module>
+        <module>services/product-ms</module>
+        <module>services/cart-ms</module>
+        <module>services/order-ms</module>
+        <module>services/payment-ms</module>
+        <module>services/shipment-ms</module>
+        <module>services/notification-ms</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>17</java.version>
+    </properties>
+</project>
