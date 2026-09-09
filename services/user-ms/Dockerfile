@@ -22,4 +22,4 @@ EXPOSE 8040
 # only works together with a cgroup memory limit (Koda docker.md).
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-XX:+UseContainerSupport", "-jar", "app.jar"]
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
-  CMD ["curl", "-fsS", "http://localhost:8040/api/user/actuator/health"] || exit 1
+  CMD ["curl", "-fsS", "http://localhost:8040/api/user/actuator/health"]

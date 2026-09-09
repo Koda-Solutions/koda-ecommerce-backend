@@ -22,4 +22,4 @@ EXPOSE 8100
 # only works together with a cgroup memory limit (Koda docker.md).
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-XX:+UseContainerSupport", "-jar", "app.jar"]
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
-  CMD ["curl", "-fsS", "http://localhost:8100/api/notification/actuator/health"] || exit 1
+  CMD ["curl", "-fsS", "http://localhost:8100/api/notification/actuator/health"]
