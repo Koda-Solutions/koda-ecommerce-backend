@@ -1,0 +1,21 @@
+# Java
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Environment and secrets: never commit credential values
+.env
+*.local
+
+# Build and logs
+*.log
