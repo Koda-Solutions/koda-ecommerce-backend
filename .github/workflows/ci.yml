@@ -33,8 +33,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Seed schemas and least privilege users
         run: |
-          container=$(docker ps --filter "ancestor=mysql:8.4" --format '{{.Names}}' | head -1)
-          docker exec -T "$container" mysql -uroot -pkoda_root_pw \
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq default-mysql-client >/dev/null
+          mysql -h 127.0.0.1 -P 3306 -uroot -pkoda_root_pw \
             < scripts/mysql/init/001_schemas_and_users.sql
       - uses: actions/setup-java@v4
         with:
