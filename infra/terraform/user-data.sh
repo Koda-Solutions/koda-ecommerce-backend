@@ -214,36 +214,45 @@ cat > /opt/ecom/Caddyfile <<'EOFCADDY'
 ecommerce.kodasolutions.net {
 	encode gzip
 
-	@internal path /api/*/internal/*
-	respond @internal 404
+	# route keeps file order, which is what makes the block rules fire before
+	# the reverse proxies. Inside handle blocks the proxies would win instead.
+	route {
+		# Security posture, visible from the public internet: the actuator and
+		# internal endpoints only ever answer 404 here.
+		@internal path /api/*/internal/*
+		respond @internal 404
 
-	@actuator path /api/*/actuator/*
-	respond @actuator 404
+		@actuator path /api/*/actuator/*
+		respond @actuator 404
 
-	handle /api/user/* {
-		reverse_proxy user-ms:8040
-	}
-	handle /api/product/* {
-		reverse_proxy product-ms:8050
-	}
-	handle /api/cart/* {
-		reverse_proxy cart-ms:8060
-	}
-	handle /api/order/* {
-		reverse_proxy order-ms:8070
-	}
-	handle /api/payment/* {
-		reverse_proxy payment-ms:8080
-	}
-	handle /api/shipment/* {
-		reverse_proxy shipment-ms:8090
-	}
-	handle /api/notification/* {
-		reverse_proxy notification-ms:8100
-	}
+		@user path /api/user/*
+		reverse_proxy @user user-ms:8040
 
-	handle {
-		reverse_proxy frontend:8080
+		@product path /api/product/*
+		reverse_proxy @product product-ms:8050
+
+		@cart path /api/cart/*
+		reverse_proxy @cart cart-ms:8060
+
+		@order path /api/order/*
+		reverse_proxy @order order-ms:8070
+
+		@payment path /api/payment/*
+		reverse_proxy @payment payment-ms:8080
+
+		@shipment path /api/shipment/*
+		reverse_proxy @shipment shipment-ms:8090
+
+		@notification path /api/notification/*
+		reverse_proxy @notification notification-ms:8100
+
+		# Everything else, including SPA routes the storefront owns, reaches
+		# the frontend; nginx inside serves index.html for every route.
+		@frontend not path /api/*
+		reverse_proxy @frontend frontend:8080
+
+		# Explicit /api/* without an owning service gets a clean 404.
+		respond 404
 	}
 }
 EOFCADDY
