@@ -19,3 +19,8 @@ dist/
 
 # Build and logs
 *.log
+# Terraform local state and providers: never commit
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
