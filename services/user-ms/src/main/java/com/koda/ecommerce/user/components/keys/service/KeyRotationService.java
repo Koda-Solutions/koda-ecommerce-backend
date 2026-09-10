@@ -65,25 +65,6 @@ public class KeyRotationService {
         return jwks;
     }
 
-    @Transactional
-    public void rotateSigningKey() {
-        SigningKey current = activeKey();
-        KeyPairGenerator generator = newKeyGenerator();
-        try {
-            for (int version = current.getKeyVersion() + 1; ; version++) {
-                if (signingKeyRepository.findByKeyVersion(version).isEmpty()) {
-                    SigningKey next = toEntity(version, generator.generateKeyPair());
-                    current.setActive(false);
-                    signingKeyRepository.save(current);
-                    signingKeyRepository.save(next);
-                    return;
-                }
-            }
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to rotate RSA signing key", ex);
-        }
-    }
-
     private Map<String, Object> activeKeyJwk() {
         SigningKey key = createFirstKey();
         RSAPublicKey publicKey = (RSAPublicKey) PemCodec.decodePublic(key.getPublicKey());
