@@ -8,7 +8,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
-final class PemCodec {
+public final class PemCodec {
 
     private static final String PRIVATE_HEADER = "-----BEGIN PRIVATE KEY-----";
     private static final String PRIVATE_FOOTER = "-----END PRIVATE KEY-----";
