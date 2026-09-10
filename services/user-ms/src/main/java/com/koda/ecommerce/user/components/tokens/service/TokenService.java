@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -67,6 +68,7 @@ public class TokenService {
         Date now = new Date();
         return Jwts.builder()
                 .issuer(issuer)
+                .id(UUID.randomUUID().toString())
                 .subject(String.valueOf(customer.getId()))
                 .claim(CLAIM_TYPE, CLAIM_ACCESS)
                 .claim(CLAIM_VERSION, customer.getKeyVersion())
