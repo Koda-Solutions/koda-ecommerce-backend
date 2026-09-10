@@ -32,7 +32,8 @@ class AuthFlowIntegrationTest {
     @Test
     void registerThenReadProfileWithCookie() throws Exception {
         String email = uniqueEmail();
-        HttpHeaders headers = register(email, "profile-test");
+        ResponseEntity<String> registered = register(email, "profile-test");
+        HttpHeaders headers = registered.getHeaders();
 
         assertThat(headers.get("Set-Cookie")).isNotNull();
         String access = cookieValue(headers, "CUSTOMER_AUTH_TOKEN");
@@ -62,7 +63,7 @@ class AuthFlowIntegrationTest {
 
     @Test
     void refreshRotatesAndLogoutKillsTokens() {
-        HttpHeaders headers = register(uniqueEmail(), "rotate-test");
+        HttpHeaders headers = register(uniqueEmail(), "rotate-test").getHeaders();
         String access0 = cookieValue(headers, "CUSTOMER_AUTH_TOKEN");
         String refresh0 = cookieValue(headers, "CUSTOMER_REFRESH_TOKEN");
 
@@ -84,7 +85,7 @@ class AuthFlowIntegrationTest {
 
     @Test
     void changePasswordRotatesKeysAndKillsOldToken() {
-        HttpHeaders headers = register(uniqueEmail(), "password-test");
+        HttpHeaders headers = register(uniqueEmail(), "password-test").getHeaders();
         String access0 = cookieValue(headers, "CUSTOMER_AUTH_TOKEN");
         String refresh0 = cookieValue(headers, "CUSTOMER_REFRESH_TOKEN");
 
