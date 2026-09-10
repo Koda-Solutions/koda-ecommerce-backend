@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -78,7 +77,7 @@ public class AuthController {
         return ResponseEntity.ok().headers(headers).body(body);
     }
 
-    @PatchMapping("/password")
+    @PostMapping("/password")
     public ResponseEntity<ReturnObject<CustomerResponseDTO>> changePassword(
             @Valid @RequestBody PasswordRequestDTO request,
             HttpServletRequest http) {

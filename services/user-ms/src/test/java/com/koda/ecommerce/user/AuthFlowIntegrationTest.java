@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class AuthFlowIntegrationTest {
 
-    private static final String BASE = "/api/user";
+    private static final String BASE = "";
 
     @Autowired
     private TestRestTemplate rest;
@@ -96,7 +96,7 @@ class AuthFlowIntegrationTest {
         requestHeaders.setContentType(MediaType.APPLICATION_JSON);
         requestHeaders.addAll(cookies(access0, refresh0));
         ResponseEntity<String> changed = rest.exchange(BASE + "/auth/password",
-                HttpMethod.PATCH, new HttpEntity<>(body, requestHeaders), String.class);
+                HttpMethod.POST, new HttpEntity<>(body, requestHeaders), String.class);
         assertThat(changed.getStatusCode()).isEqualTo(HttpStatus.OK);
         String access1 = cookieValue(changed.getHeaders(), "CUSTOMER_AUTH_TOKEN");
 

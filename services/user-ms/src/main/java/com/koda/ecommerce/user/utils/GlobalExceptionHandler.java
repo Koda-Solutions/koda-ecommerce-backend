@@ -8,6 +8,9 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import static com.koda.ecommerce.user.utils.ErrorCodes.NOT_FOUND;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -18,6 +21,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ReturnObject<Void>> handleApiException(ApiException ex) {
         ReturnObject<Void> body = ReturnObject.fail(ex.getMessage(), ex.getErrorCode());
         return ResponseEntity.status(ex.getStatus()).body(body);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ReturnObject<Void>> handleNotFound(NoResourceFoundException ex) {
+        ReturnObject<Void> body = ReturnObject.fail("Endpoint not found", NOT_FOUND);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
