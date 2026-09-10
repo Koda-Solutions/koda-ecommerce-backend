@@ -8,8 +8,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import static com.koda.ecommerce.user.utils.ErrorCodes.METHOD_NOT_ALLOWED;
 import static com.koda.ecommerce.user.utils.ErrorCodes.NOT_FOUND;
 
 @RestControllerAdvice
@@ -27,6 +29,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ReturnObject<Void>> handleNotFound(NoResourceFoundException ex) {
         ReturnObject<Void> body = ReturnObject.fail("Endpoint not found", NOT_FOUND);
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ReturnObject<Void>> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException ex) {
+        ReturnObject<Void> body = ReturnObject.fail(
+                "Method not allowed", METHOD_NOT_ALLOWED);
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

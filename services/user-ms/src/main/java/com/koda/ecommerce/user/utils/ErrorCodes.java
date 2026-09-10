@@ -11,6 +11,7 @@ public final class ErrorCodes {
     public static final String EMAIL_ALREADY_EXISTS = "EMAIL_ALREADY_EXISTS";
     public static final String MOBILE_ALREADY_EXISTS = "MOBILE_ALREADY_EXISTS";
     public static final String NOT_FOUND = "NOT_FOUND";
+    public static final String METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED";
 
     private ErrorCodes() {
     }
