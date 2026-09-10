@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface LoginAttemptRepository extends JpaRepository<LoginAttempt, Long> {
 
-    long countByIdentifierAndCreatedAtAfter(String identifier, LocalDateTime after);
+    long countByIdentifierAndSuccessFalseAndCreatedAtAfter(
+            String identifier, LocalDateTime after);
 }

@@ -27,7 +27,7 @@ public class LoginGuardService {
 
     public void assertLoginAllowed(String identifier) {
         long failed = loginAttemptRepository
-                .countByIdentifierAndCreatedAtAfter(identifier,
+                .countByIdentifierAndSuccessFalseAndCreatedAtAfter(identifier,
                         LocalDateTime.now().minusMinutes(windowMinutes));
         if (failed >= maxFailures) {
             throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, RATE_LIMITED,

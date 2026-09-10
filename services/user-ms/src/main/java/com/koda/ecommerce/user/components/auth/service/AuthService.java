@@ -91,7 +91,7 @@ public class AuthService {
 
     @Transactional
     public void logout(Customer customer) {
-        rotateFor(customer);
+        invalidateSessions(customer);
     }
 
     @Transactional
@@ -103,7 +103,7 @@ public class AuthService {
         }
         customer.setPasswordHash(passwordEncoder.encode(dto.getNewPassword()));
         customer.setPasswordUpdatedAt(LocalDateTime.now());
-        rotateFor(customer);
+        invalidateSessions(customer);
         return tokenService.issueForCustomer(customer);
     }
 
@@ -112,9 +112,9 @@ public class AuthService {
         return tokenService.rotateCustomerRefresh(rawRefreshToken);
     }
 
-    private void rotateFor(Customer customer) {
-        int version = keyRotationService.rotateFor(SubjectType.CUSTOMER, customer.getId());
-        customer.setKeyVersion(version);
+    private void invalidateSessions(Customer customer) {
+        keyRotationService.revokeAllRefreshTokens(SubjectType.CUSTOMER, customer.getId());
+        customer.setKeyVersion(customer.getKeyVersion() + 1);
         customerRepository.save(customer);
     }
 

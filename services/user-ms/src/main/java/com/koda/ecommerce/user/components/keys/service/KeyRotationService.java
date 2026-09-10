@@ -34,8 +34,7 @@ public class KeyRotationService {
     }
 
     @Transactional
-    public synchronized int rotateFor(SubjectType subjectType, Long subjectId) {
-        SigningKey next = createNextKey();
+    public void revokeAllRefreshTokens(SubjectType subjectType, Long subjectId) {
         LocalDateTime now = LocalDateTime.now();
         List<RefreshToken> tokens = refreshTokenRepository
                 .findAllBySubjectTypeAndSubjectIdAndRevokedAtIsNull(subjectType, subjectId);
@@ -43,29 +42,6 @@ public class KeyRotationService {
             token.setRevokedAt(now);
             refreshTokenRepository.save(token);
         });
-        return next.getKeyVersion();
-    }
-
-    @Transactional
-    protected SigningKey createNextKey() {
-        int nextVersion = activeVersion() + 1;
-        SigningKey key = generate(nextVersion);
-        signingKeyRepository.findAllByActiveTrue().forEach(old -> {
-            old.setActive(false);
-            signingKeyRepository.save(old);
-        });
-        return signingKeyRepository.save(key);
-    }
-
-    private SigningKey createFirstKey() {
-        return signingKeyRepository.save(generate(1));
-    }
-
-    @Transactional(readOnly = true)
-    protected int activeVersion() {
-        return signingKeyRepository.findFirstByActiveTrueOrderByIdDesc()
-                .map(SigningKey::getKeyVersion)
-                .orElse(0);
     }
 
     @Transactional
@@ -84,9 +60,28 @@ public class KeyRotationService {
             jwks.add(jwk);
         }
         if (jwks.isEmpty()) {
-            return List.of(activeKeyJwk());
+            jwks.add(activeKeyJwk());
         }
         return jwks;
+    }
+
+    @Transactional
+    public void rotateSigningKey() {
+        SigningKey current = activeKey();
+        KeyPairGenerator generator = newKeyGenerator();
+        try {
+            for (int version = current.getKeyVersion() + 1; ; version++) {
+                if (signingKeyRepository.findByKeyVersion(version).isEmpty()) {
+                    SigningKey next = toEntity(version, generator.generateKeyPair());
+                    current.setActive(false);
+                    signingKeyRepository.save(current);
+                    signingKeyRepository.save(next);
+                    return;
+                }
+            }
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to rotate RSA signing key", ex);
+        }
     }
 
     private Map<String, Object> activeKeyJwk() {
@@ -102,6 +97,31 @@ public class KeyRotationService {
         return jwk;
     }
 
+    private SigningKey createFirstKey() {
+        try {
+            return signingKeyRepository.save(
+                    toEntity(1, newKeyGenerator().generateKeyPair()));
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to generate first signing key", ex);
+        }
+    }
+
+    private static KeyPairGenerator newKeyGenerator() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        return generator;
+    }
+
+    private static SigningKey toEntity(int version, KeyPair pair) {
+        SigningKey key = new SigningKey();
+        key.setKeyVersion(version);
+        key.setActive(true);
+        key.setPrivateKey(PemCodec.encodePrivate((RSAPrivateKey) pair.getPrivate()));
+        key.setPublicKey(PemCodec.encodePublic((RSAPublicKey) pair.getPublic()));
+        key.setCreatedAt(LocalDateTime.now());
+        return key;
+    }
+
     private static String unsignedBase64Url(BigInteger value) {
         byte[] raw = value.toByteArray();
         if (raw.length > 1 && raw[0] == 0) {
@@ -110,22 +130,5 @@ public class KeyRotationService {
             raw = withoutSign;
         }
         return Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
-    }
-
-    private SigningKey generate(int version) {
-        try {
-            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-            generator.initialize(2048);
-            KeyPair pair = generator.generateKeyPair();
-            SigningKey key = new SigningKey();
-            key.setKeyVersion(version);
-            key.setActive(true);
-            key.setPrivateKey(PemCodec.encodePrivate((RSAPrivateKey) pair.getPrivate()));
-            key.setPublicKey(PemCodec.encodePublic((RSAPublicKey) pair.getPublic()));
-            key.setCreatedAt(LocalDateTime.now());
-            return key;
-        } catch (Exception ex) {
-            throw new IllegalStateException("Failed to generate RSA signing key", ex);
-        }
     }
 }

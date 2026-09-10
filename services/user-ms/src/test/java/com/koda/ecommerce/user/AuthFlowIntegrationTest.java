@@ -114,12 +114,73 @@ class AuthFlowIntegrationTest {
                 .isEqualTo(HttpStatus.OK);
     }
 
+    @Test
+    void successfulEmailAndMobileLoginIssueCookies() {
+        String email = uniqueEmail();
+        String mobile = "+9675550003212";
+        ResponseEntity<String> registered = register(email, "login-test", mobile);
+        assertThat(registered.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> byEmail = login(email, "Str0ngPassword!");
+        assertThat(byEmail.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String accessByEmail = cookieValue(byEmail.getHeaders(), "CUSTOMER_AUTH_TOKEN");
+        assertThat(accessByEmail).isNotBlank();
+        assertThat(get("/customer/me", cookies(accessByEmail, null)).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        ResponseEntity<String> byMobile = login(mobile, "Str0ngPassword!");
+        assertThat(byMobile.getStatusCode()).isEqualTo(HttpStatus.OK);
+        String accessByMobile = cookieValue(byMobile.getHeaders(), "CUSTOMER_AUTH_TOKEN");
+        assertThat(accessByMobile).isNotBlank();
+        assertThat(get("/customer/me", cookies(accessByMobile, null)).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void logoutOnlyKillsThatCustomersTokens() {
+        HttpHeaders userA = register(uniqueEmail(), "user-a").getHeaders();
+        String accessA = cookieValue(userA, "CUSTOMER_AUTH_TOKEN");
+        String refreshA = cookieValue(userA, "CUSTOMER_REFRESH_TOKEN");
+        HttpHeaders userB = register(uniqueEmail(), "user-b").getHeaders();
+        String accessB = cookieValue(userB, "CUSTOMER_AUTH_TOKEN");
+        String refreshB = cookieValue(userB, "CUSTOMER_REFRESH_TOKEN");
+
+        assertThat(post("/auth/logout", null, cookies(accessA, refreshA)).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+
+        assertThat(get("/customer/me", cookies(accessA, refreshA)).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(get("/customer/me", cookies(accessB, refreshB)).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void successfulLoginsDoNotCountTowardRateLimit() {
+        String email = uniqueEmail();
+        ResponseEntity<String> registered = register(email, "loop-test");
+        assertThat(registered.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        for (int i = 0; i < 4; i++) {
+            ResponseEntity<String> ok = login(email, "Str0ngPassword!");
+            assertThat(ok.getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+        ResponseEntity<String> firstFailure = login(email, "wrong-password");
+        assertThat(firstFailure.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
     private ResponseEntity<String> register(String email, String fullName) {
-        Map<String, Object> body = Map.of(
-                "fullName", fullName,
-                "email", email,
-                "password", "Str0ngPassword!",
-                "language", "ar");
+        return register(email, fullName, null);
+    }
+
+    private ResponseEntity<String> register(String email, String fullName, String mobile) {
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("fullName", fullName);
+        body.put("email", email);
+        body.put("password", "Str0ngPassword!");
+        body.put("language", "ar");
+        if (mobile != null) {
+            body.put("mobile", mobile);
+        }
         return rest.postForEntity(BASE + "/auth/register", jsonEntity(body), String.class);
     }
 
