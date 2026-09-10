@@ -26,7 +26,7 @@ public final class PemCodec {
         return encode(PUBLIC_HEADER, PUBLIC_FOOTER, key.getEncoded());
     }
 
-    static PrivateKey decodePrivate(String pem) {
+    public static PrivateKey decodePrivate(String pem) {
         try {
             byte[] der = decode(pem, PRIVATE_HEADER, PRIVATE_FOOTER);
             return KeyFactory.getInstance("RSA")
@@ -36,7 +36,7 @@ public final class PemCodec {
         }
     }
 
-    static PublicKey decodePublic(String pem) {
+    public static PublicKey decodePublic(String pem) {
         try {
             byte[] der = decode(pem, PUBLIC_HEADER, PUBLIC_FOOTER);
             return KeyFactory.getInstance("RSA")
