@@ -119,6 +119,7 @@ services:
       MYSQL_USER: koda_user_ms
       MYSQL_PASSWORD: ${USER_MS_DB_PW}
       JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECURE: "true"
 
   product-ms:
     image: ${ECR_BASE}/ecom/product-ms:${TAG_PRODUCT_MS}
